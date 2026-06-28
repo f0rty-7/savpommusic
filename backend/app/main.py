@@ -31,6 +31,6 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 app.include_router(music_router, prefix="/api")
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
     return {"message": "Sava&Pomom Music backend работает"}

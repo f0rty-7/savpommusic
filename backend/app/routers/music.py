@@ -1,8 +1,10 @@
+import mimetypes
 from pathlib import Path
 from typing import List
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import crud, schemas
@@ -68,6 +70,32 @@ def get_song(song_id: int, db: Session = Depends(get_db)):
     if not db_song:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Песня не найдена")
     return db_song
+
+
+@router.get("/songs/{song_id}/stream")
+def stream_song(song_id: int, db: Session = Depends(get_db)):
+    db_song = crud.get_song(db, song_id)
+    if not db_song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Песня не найдена")
+
+    media_url = (db_song.url or "").strip()
+    if not media_url:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="У песни нет аудиофайла")
+
+    if media_url.startswith(("http://", "https://")):
+        return RedirectResponse(url=media_url)
+
+    candidate = (BASE_DIR / media_url.lstrip("/")).resolve()
+    try:
+        candidate.relative_to(BASE_DIR)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Недопустимый путь к аудио") from exc
+
+    if not candidate.exists() or not candidate.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Аудиофайл не найден")
+
+    media_type, _ = mimetypes.guess_type(str(candidate))
+    return FileResponse(candidate, media_type=media_type or "audio/mpeg")
 
 
 @router.put("/songs/{song_id}", response_model=schemas.Song)
