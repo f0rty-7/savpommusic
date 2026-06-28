@@ -3,6 +3,24 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+
+    class Config:
+        orm_mode = True
+
+
 class SongBase(BaseModel):
     title: str
     artist: str

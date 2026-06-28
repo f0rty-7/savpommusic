@@ -11,6 +11,15 @@ playlist_song = Table(
 )
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    auth_token = Column(String, unique=True, index=True, nullable=True)
+
+
 class Song(Base):
     __tablename__ = "songs"
 
