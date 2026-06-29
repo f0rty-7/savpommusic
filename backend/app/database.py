@@ -27,6 +27,12 @@ def init_db():
             if "genre_id" not in columns:
                 conn.execute(text("ALTER TABLE songs ADD COLUMN genre_id INTEGER NULL"))
             conn.commit()
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info('playlists')"))
+            columns = [row[1] for row in result.fetchall()]
+            if "cover_url" not in columns:
+                conn.execute(text("ALTER TABLE playlists ADD COLUMN cover_url TEXT DEFAULT ''"))
+            conn.commit()
 
 
 def get_db():

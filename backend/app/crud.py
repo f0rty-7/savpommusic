@@ -120,7 +120,11 @@ def create_playlist(db: Session, playlist: schemas.PlaylistCreate):
     if playlist.song_ids:
         songs = db.query(models.Song).filter(models.Song.id.in_(playlist.song_ids)).all()
 
-    db_playlist = models.Playlist(name=playlist.name, description=playlist.description)
+    db_playlist = models.Playlist(
+        name=playlist.name,
+        description=playlist.description,
+        cover_url=playlist.cover_url or "",
+    )
     db_playlist.songs = songs
     db.add(db_playlist)
     db.commit()

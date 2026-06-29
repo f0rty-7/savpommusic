@@ -99,6 +99,7 @@ class GenreWithSongs(GenreResponse):
 class PlaylistBase(BaseModel):
     name: str
     description: Optional[str] = ""
+    cover_url: Optional[str] = ""
 
 
 class PlaylistCreate(PlaylistBase):
@@ -108,6 +109,7 @@ class PlaylistCreate(PlaylistBase):
 class PlaylistUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    cover_url: Optional[str] = None
     song_ids: Optional[List[int]] = None
 
 

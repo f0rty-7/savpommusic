@@ -76,6 +76,30 @@ def save_cover_file(file: UploadFile) -> str:
     return f"/static/covers/{target.name}"
 
 
+def parse_song_ids(song_ids: str | List[str] | None) -> list[int] | None:
+    if song_ids is None:
+        return None
+    if isinstance(song_ids, list):
+        values: list[str] = []
+        for item in song_ids:
+            if item is None:
+                continue
+            if isinstance(item, int):
+                values.append(str(item))
+            else:
+                item_text = str(item).strip()
+                if not item_text:
+                    continue
+                values.extend(part.strip() for part in item_text.split(",") if part.strip())
+        return [int(value) for value in values]
+    if isinstance(song_ids, str):
+        cleaned = song_ids.strip()
+        if not cleaned:
+            return None
+        return [int(part.strip()) for part in cleaned.split(",") if part.strip()]
+    return None
+
+
 @router.get("/songs", response_model=List[schemas.Song])
 def list_songs(
     search: str | None = Query(None, description="Искать по названию, артисту или альбому"),
@@ -295,25 +319,37 @@ def list_playlists(
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
 ):
     return crud.get_playlists(db, skip=skip, limit=limit)
 
 
 @router.post("/playlists", response_model=schemas.Playlist)
 def create_playlist(
-    playlist: schemas.PlaylistCreate,
-    db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    name: str = Form(...),
+    description: str | None = Form(None),
+    cover_url: str | None = Form(None),
+    song_ids: str | List[str] | None = Form(None),
+    cover: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
 ):
-    return crud.create_playlist(db, playlist)
+    cover_url_value = cover_url or ""
+    if cover:
+        cover_url_value = save_cover_file(cover)
+
+    playlist_data = schemas.PlaylistCreate(
+        name=name,
+        description=description or "",
+        cover_url=cover_url_value,
+        song_ids=parse_song_ids(song_ids),
+    )
+    return crud.create_playlist(db, playlist_data)
 
 
 @router.get("/playlists/{playlist_id}", response_model=schemas.Playlist)
 def get_playlist(
     playlist_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
 ):
     db_playlist = crud.get_playlist(db, playlist_id)
     if not db_playlist:
@@ -324,11 +360,29 @@ def get_playlist(
 @router.put("/playlists/{playlist_id}", response_model=schemas.Playlist)
 def update_playlist(
     playlist_id: int,
-    playlist: schemas.PlaylistUpdate,
-    db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
+    name: str | None = Form(None),
+    description: str | None = Form(None),
+    cover_url: str | None = Form(None),
+    song_ids: str | List[str] | None = Form(None),
+    cover: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
 ):
-    db_playlist = crud.update_playlist(db, playlist_id, playlist)
+    db_playlist = crud.get_playlist(db, playlist_id)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
+
+    cover_url_value = cover_url if cover_url is not None else db_playlist.cover_url
+    if cover:
+        cover_url_value = save_cover_file(cover)
+
+    playlist_update = schemas.PlaylistUpdate(
+        name=name,
+        description=description,
+        cover_url=cover_url_value,
+        song_ids=parse_song_ids(song_ids),
+    )
+    db_playlist = crud.update_playlist(db, playlist_id, playlist_update)
     if not db_playlist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
     return db_playlist
