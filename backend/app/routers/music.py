@@ -167,6 +167,7 @@ def get_genre(
     db_genre = crud.get_genre(db, genre_id)
     if not db_genre:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Жанр не найден")
+    setattr(db_genre, "songs_count", len(db_genre.songs or []))
     return db_genre
 
 

@@ -90,6 +90,7 @@ class GenreResponse(GenreBase):
 
 class GenreWithSongs(GenreResponse):
     songs: List[Song] = []
+    songs_count: int = 0
 
     class Config:
         orm_mode = True
