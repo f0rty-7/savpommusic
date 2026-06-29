@@ -106,6 +106,13 @@ class PlaylistCreate(PlaylistBase):
     song_ids: Optional[List[int]] = None
 
 
+class PlaylistListItem(PlaylistBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
 class PlaylistUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None

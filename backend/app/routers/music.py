@@ -314,7 +314,7 @@ def delete_song(
     return db_song
 
 
-@router.get("/playlists", response_model=List[schemas.Playlist])
+@router.get("/playlists", response_model=List[schemas.PlaylistListItem])
 def list_playlists(
     skip: int = 0,
     limit: int = 50,
