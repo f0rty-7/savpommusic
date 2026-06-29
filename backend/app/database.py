@@ -24,6 +24,8 @@ def init_db():
                 conn.execute(text("ALTER TABLE songs ADD COLUMN plays_count INTEGER DEFAULT 0"))
             if "cover_url" not in columns:
                 conn.execute(text("ALTER TABLE songs ADD COLUMN cover_url TEXT DEFAULT ''"))
+            if "genre_id" not in columns:
+                conn.execute(text("ALTER TABLE songs ADD COLUMN genre_id INTEGER NULL"))
             conn.commit()
 
 

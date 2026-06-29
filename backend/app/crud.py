@@ -62,18 +62,49 @@ def get_popular_songs(db: Session, limit: int = 10):
 
 
 def get_genres(db: Session):
-    rows = db.query(models.Song.genre).filter(models.Song.genre != "").distinct().all()
-    return [genre for (genre,) in rows if genre is not None]
+    return db.query(models.Genre).order_by(models.Genre.title).all()
+
+
+def get_genre(db: Session, genre_id: int):
+    return db.query(models.Genre).filter(models.Genre.id == genre_id).first()
+
+
+def create_genre(db: Session, genre: schemas.GenreCreate):
+    db_genre = models.Genre(**genre.dict())
+    db.add(db_genre)
+    db.commit()
+    db.refresh(db_genre)
+    return db_genre
+
+
+def update_genre(db: Session, genre_id: int, genre_update: schemas.GenreUpdate):
+    db_genre = db.query(models.Genre).filter(models.Genre.id == genre_id).first()
+    if not db_genre:
+        return None
+    for field, value in genre_update.dict(exclude_unset=True).items():
+        setattr(db_genre, field, value)
+    db.commit()
+    db.refresh(db_genre)
+    return db_genre
+
+
+def delete_genre(db: Session, genre_id: int):
+    db_genre = db.query(models.Genre).filter(models.Genre.id == genre_id).first()
+    if not db_genre:
+        return None
+    db.delete(db_genre)
+    db.commit()
+    return db_genre
 
 
 def get_songs_by_genre(db: Session, genre: str, skip: int = 0, limit: int = 50):
-    return (
-        db.query(models.Song)
-        .filter(models.Song.genre.ilike(genre))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    genre_record = db.query(models.Genre).filter(models.Genre.title.ilike(genre)).first()
+    query = db.query(models.Song)
+    if genre_record:
+        query = query.filter(models.Song.genre_id == genre_record.id)
+    else:
+        query = query.filter(models.Song.genre.ilike(genre))
+    return query.offset(skip).limit(limit).all()
 
 
 def get_playlist(db: Session, playlist_id: int):

@@ -28,12 +28,25 @@ class Song(Base):
     artist = Column(String, index=True)
     album = Column(String, default="")
     genre = Column(String, default="")
+    genre_id = Column(Integer, ForeignKey("genres.id"), nullable=True)
     url = Column(String, default="")
     cover_url = Column(String, default="")
     duration = Column(Integer, default=0)
     plays_count = Column(Integer, default=0)
 
+    genre_detail = relationship("Genre", back_populates="songs")
     playlists = relationship("Playlist", secondary=playlist_song, back_populates="songs")
+
+
+class Genre(Base):
+    __tablename__ = "genres"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True, nullable=False)
+    description = Column(String, default="")
+    cover_url = Column(String, default="")
+
+    songs = relationship("Song", back_populates="genre_detail")
 
 
 class Playlist(Base):

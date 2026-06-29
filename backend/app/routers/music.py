@@ -93,6 +93,7 @@ async def add_song(
     artist: str = Form(...),
     album: str | None = Form(None),
     genre: str | None = Form(None),
+    genre_id: int | None = Form(None),
     duration: int | None = Form(0),
     url: str | None = Form(None),
     cover_url: str | None = Form(None),
@@ -108,11 +109,18 @@ async def add_song(
     if cover:
         cover_url_value = save_cover_file(cover)
 
+    genre_value = genre or ""
+    if genre_id:
+        db_genre = crud.get_genre(db, genre_id)
+        if db_genre:
+            genre_value = db_genre.title
+
     song = schemas.SongCreate(
         title=title,
         artist=artist,
         album=album or "",
-        genre=genre or "",
+        genre=genre_value,
+        genre_id=genre_id,
         url=file_url,
         cover_url=cover_url_value,
         duration=duration or 0,
@@ -125,9 +133,79 @@ def popular_songs(limit: int = 10, db: Session = Depends(get_db)):
     return crud.get_popular_songs(db, limit=limit)
 
 
-@router.get("/genres", response_model=List[str])
+@router.get("/genres", response_model=List[schemas.GenreResponse])
 def list_genres(db: Session = Depends(get_db)):
     return crud.get_genres(db)
+
+
+@router.post("/genres", response_model=schemas.GenreResponse)
+def create_genre(
+    current_user: models.User = Depends(get_current_user),
+    title: str = Form(...),
+    description: str | None = Form(None),
+    cover_url: str | None = Form(None),
+    cover: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+):
+    cover_url_value = cover_url or ""
+    if cover:
+        cover_url_value = save_cover_file(cover)
+
+    genre = schemas.GenreCreate(
+        title=title,
+        description=description or "",
+        cover_url=cover_url_value,
+    )
+    return crud.create_genre(db, genre)
+
+
+@router.get("/genres/{genre_id}", response_model=schemas.GenreWithSongs)
+def get_genre(
+    genre_id: int,
+    db: Session = Depends(get_db),
+):
+    db_genre = crud.get_genre(db, genre_id)
+    if not db_genre:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Жанр не найден")
+    return db_genre
+
+
+@router.put("/genres/{genre_id}", response_model=schemas.GenreResponse)
+def update_genre(
+    genre_id: int,
+    current_user: models.User = Depends(get_current_user),
+    title: str | None = Form(None),
+    description: str | None = Form(None),
+    cover_url: str | None = Form(None),
+    cover: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+):
+    db_genre = crud.get_genre(db, genre_id)
+    if not db_genre:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Жанр не найден")
+
+    cover_url_value = cover_url if cover_url is not None else db_genre.cover_url
+    if cover:
+        cover_url_value = save_cover_file(cover)
+
+    genre_update = schemas.GenreUpdate(
+        title=title,
+        description=description,
+        cover_url=cover_url_value,
+    )
+    return crud.update_genre(db, genre_id, genre_update)
+
+
+@router.delete("/genres/{genre_id}", response_model=schemas.GenreResponse)
+def delete_genre(
+    genre_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    db_genre = crud.delete_genre(db, genre_id)
+    if not db_genre:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Жанр не найден")
+    return db_genre
 
 
 @router.get("/songs/genre/{genre_name}", response_model=List[schemas.Song])
