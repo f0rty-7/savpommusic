@@ -47,6 +47,35 @@ def delete_song(db: Session, song_id: int):
     return db_song
 
 
+def increment_song_plays(db: Session, song_id: int):
+    db_song = db.query(models.Song).filter(models.Song.id == song_id).first()
+    if not db_song:
+        return None
+    db_song.plays_count += 1
+    db.commit()
+    db.refresh(db_song)
+    return db_song
+
+
+def get_popular_songs(db: Session, limit: int = 10):
+    return db.query(models.Song).order_by(models.Song.plays_count.desc()).limit(limit).all()
+
+
+def get_genres(db: Session):
+    rows = db.query(models.Song.genre).filter(models.Song.genre != "").distinct().all()
+    return [genre for (genre,) in rows if genre is not None]
+
+
+def get_songs_by_genre(db: Session, genre: str, skip: int = 0, limit: int = 50):
+    return (
+        db.query(models.Song)
+        .filter(models.Song.genre.ilike(genre))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 def get_playlist(db: Session, playlist_id: int):
     return db.query(models.Playlist).filter(models.Playlist.id == playlist_id).first()
 

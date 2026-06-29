@@ -100,6 +100,26 @@ async def add_song(
     return crud.create_song(db, song)
 
 
+@router.get("/songs/popular", response_model=List[schemas.Song])
+def popular_songs(limit: int = 10, db: Session = Depends(get_db)):
+    return crud.get_popular_songs(db, limit=limit)
+
+
+@router.get("/genres", response_model=List[str])
+def list_genres(db: Session = Depends(get_db)):
+    return crud.get_genres(db)
+
+
+@router.get("/songs/genre/{genre_name}", response_model=List[schemas.Song])
+def songs_by_genre(
+    genre_name: str,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    return crud.get_songs_by_genre(db, genre_name, skip=skip, limit=limit)
+
+
 @router.get("/songs/{song_id}", response_model=schemas.Song)
 def get_song(
     song_id: int,
@@ -136,6 +156,14 @@ def stream_song(song_id: int, db: Session = Depends(get_db)):
 
     media_type, _ = mimetypes.guess_type(str(candidate))
     return FileResponse(candidate, media_type=media_type or "audio/mpeg")
+
+
+@router.post("/songs/{song_id}/play", response_model=schemas.Song)
+def play_song(song_id: int, db: Session = Depends(get_db)):
+    db_song = crud.increment_song_plays(db, song_id)
+    if not db_song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Песня не найдена")
+    return db_song
 
 
 @router.put("/songs/{song_id}", response_model=schemas.Song)

@@ -28,6 +28,7 @@ class SongBase(BaseModel):
     genre: Optional[str] = ""
     url: Optional[str] = ""
     duration: Optional[int] = 0
+    plays_count: Optional[int] = 0
 
 
 class SongCreate(SongBase):
@@ -41,6 +42,7 @@ class SongUpdate(BaseModel):
     genre: Optional[str] = None
     url: Optional[str] = None
     duration: Optional[int] = None
+    plays_count: Optional[int] = None
 
 
 class Song(SongBase):

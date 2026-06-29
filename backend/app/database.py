@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
@@ -12,6 +12,17 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+    if engine.dialect.name == "sqlite":
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info('songs')"))
+            columns = [row[1] for row in result.fetchall()]
+            if "plays_count" not in columns:
+                conn.execute(text("ALTER TABLE songs ADD COLUMN plays_count INTEGER DEFAULT 0"))
+                conn.commit()
 
 
 def get_db():

@@ -30,6 +30,7 @@ class Song(Base):
     genre = Column(String, default="")
     url = Column(String, default="")
     duration = Column(Integer, default=0)
+    plays_count = Column(Integer, default=0)
 
     playlists = relationship("Playlist", secondary=playlist_song, back_populates="songs")
 
