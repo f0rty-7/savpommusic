@@ -49,7 +49,9 @@ def get_me(current_user: models.User = Depends(get_current_user)):
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 AUDIO_DIR = BASE_DIR / "static" / "music"
+COVER_DIR = BASE_DIR / "static" / "covers"
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+COVER_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def save_audio_file(file: UploadFile) -> str:
@@ -61,6 +63,17 @@ def save_audio_file(file: UploadFile) -> str:
     with target.open("wb") as buffer:
         buffer.write(file.file.read())
     return f"/static/music/{target.name}"
+
+
+def save_cover_file(file: UploadFile) -> str:
+    filename = Path(file.filename).name
+    safe_name = "".join(c for c in filename if c.isalnum() or c in "._-")
+    if not safe_name:
+        safe_name = "cover"
+    target = COVER_DIR / f"{uuid4().hex}_{safe_name}"
+    with target.open("wb") as buffer:
+        buffer.write(file.file.read())
+    return f"/static/covers/{target.name}"
 
 
 @router.get("/songs", response_model=List[schemas.Song])
@@ -82,12 +95,18 @@ async def add_song(
     genre: str | None = Form(None),
     duration: int | None = Form(0),
     url: str | None = Form(None),
+    cover_url: str | None = Form(None),
     file: UploadFile | None = File(None),
+    cover: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
     file_url = url or ""
     if file:
         file_url = save_audio_file(file)
+
+    cover_url_value = cover_url or ""
+    if cover:
+        cover_url_value = save_cover_file(cover)
 
     song = schemas.SongCreate(
         title=title,
@@ -95,6 +114,7 @@ async def add_song(
         album=album or "",
         genre=genre or "",
         url=file_url,
+        cover_url=cover_url_value,
         duration=duration or 0,
     )
     return crud.create_song(db, song)

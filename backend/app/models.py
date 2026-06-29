@@ -29,6 +29,7 @@ class Song(Base):
     album = Column(String, default="")
     genre = Column(String, default="")
     url = Column(String, default="")
+    cover_url = Column(String, default="")
     duration = Column(Integer, default=0)
     plays_count = Column(Integer, default=0)
 

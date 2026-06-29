@@ -22,7 +22,9 @@ def init_db():
             columns = [row[1] for row in result.fetchall()]
             if "plays_count" not in columns:
                 conn.execute(text("ALTER TABLE songs ADD COLUMN plays_count INTEGER DEFAULT 0"))
-                conn.commit()
+            if "cover_url" not in columns:
+                conn.execute(text("ALTER TABLE songs ADD COLUMN cover_url TEXT DEFAULT ''"))
+            conn.commit()
 
 
 def get_db():
