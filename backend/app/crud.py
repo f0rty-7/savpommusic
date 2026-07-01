@@ -159,3 +159,20 @@ def delete_playlist(db: Session, playlist_id: int):
     db.delete(db_playlist)
     db.commit()
     return db_playlist
+
+
+# update user profile helper
+def update_user_profile(db: Session, user_id: int, user_update: schemas.UserUpdate):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        return None
+    update_data = user_update.dict(exclude_unset=True)
+    if "password" in update_data and update_data.get("password") is not None:
+        from .auth import hash_password
+
+        db_user.password_hash = hash_password(update_data.pop("password"))
+    for field, value in update_data.items():
+        setattr(db_user, field, value)
+    db.commit()
+    db.refresh(db_user)
+    return db_user

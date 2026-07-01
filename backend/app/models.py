@@ -18,6 +18,7 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     auth_token = Column(String, unique=True, index=True, nullable=True)
+    avatar_url = Column(String, default="")
 
 
 class Song(Base):

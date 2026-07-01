@@ -47,6 +47,26 @@ def login_user(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
 def get_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+
+
+@router.put("/auth/me", response_model=schemas.UserResponse)
+async def update_me(
+    username: str | None = Form(None),
+    password: str | None = Form(None),
+    avatar: UploadFile | None = File(None),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    avatar_url_value = current_user.avatar_url or ""
+    if avatar:
+        avatar_url_value = save_cover_file(avatar)
+
+    update = schemas.UserUpdate(username=username, password=password, avatar_url=avatar_url_value)
+    user = crud.update_user_profile(db, current_user.id, update)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    return user
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 AUDIO_DIR = BASE_DIR / "static" / "music"
 COVER_DIR = BASE_DIR / "static" / "covers"

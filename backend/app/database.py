@@ -33,6 +33,12 @@ def init_db():
             if "cover_url" not in columns:
                 conn.execute(text("ALTER TABLE playlists ADD COLUMN cover_url TEXT DEFAULT ''"))
             conn.commit()
+        with engine.connect() as conn:
+            result = conn.execute(text("PRAGMA table_info('users')"))
+            columns = [row[1] for row in result.fetchall()]
+            if "avatar_url" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT ''"))
+            conn.commit()
 
 
 def get_db():

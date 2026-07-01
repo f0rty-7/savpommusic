@@ -16,9 +16,16 @@ class TokenResponse(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
+    avatar_url: Optional[str] = ""
 
     class Config:
         orm_mode = True
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 class SongBase(BaseModel):
