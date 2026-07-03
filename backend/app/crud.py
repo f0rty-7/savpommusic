@@ -132,6 +132,45 @@ def create_playlist(db: Session, playlist: schemas.PlaylistCreate):
     return db_playlist
 
 
+def add_favorite(db: Session, user_id: int, song_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        return None
+    db_song = db.query(models.Song).filter(models.Song.id == song_id).first()
+    if not db_song:
+        return None
+    if db_song not in db_user.favorites:
+        db_user.favorites.append(db_song)
+        db.commit()
+        db.refresh(db_user)
+    return db_song
+
+
+def remove_favorite(db: Session, user_id: int, song_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        return None
+    db_song = db.query(models.Song).filter(models.Song.id == song_id).first()
+    if not db_song:
+        return None
+    if db_song in db_user.favorites:
+        db_user.favorites.remove(db_song)
+        db.commit()
+        db.refresh(db_user)
+    return db_song
+
+
+def get_user_favorites(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return (
+        db.query(models.Song)
+        .join(models.User.favorites)
+        .filter(models.User.id == user_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 def update_playlist(db: Session, playlist_id: int, playlist_update: schemas.PlaylistUpdate):
     db_playlist = db.query(models.Playlist).filter(models.Playlist.id == playlist_id).first()
     if not db_playlist:

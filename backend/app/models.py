@@ -11,6 +11,14 @@ playlist_song = Table(
 )
 
 
+user_favorite = Table(
+    "user_favorite",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("song_id", Integer, ForeignKey("songs.id"), primary_key=True),
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -19,6 +27,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     auth_token = Column(String, unique=True, index=True, nullable=True)
     avatar_url = Column(String, default="")
+    favorites = relationship("Song", secondary=user_favorite, back_populates="liked_by")
 
 
 class Song(Base):
@@ -37,6 +46,7 @@ class Song(Base):
 
     genre_detail = relationship("Genre", back_populates="songs")
     playlists = relationship("Playlist", secondary=playlist_song, back_populates="songs")
+    liked_by = relationship("User", secondary=user_favorite, back_populates="favorites")
 
 
 class Genre(Base):

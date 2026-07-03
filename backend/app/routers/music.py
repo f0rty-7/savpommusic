@@ -377,6 +377,40 @@ def get_playlist(
     return db_playlist
 
 
+@router.post("/favorites", response_model=schemas.Song)
+def add_favorite(
+    song_id: int = Form(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_song = crud.add_favorite(db, current_user.id, song_id)
+    if not db_song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Песня или пользователь не найдены")
+    return db_song
+
+
+@router.delete("/favorites/{song_id}", response_model=schemas.Song)
+def delete_favorite(
+    song_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_song = crud.remove_favorite(db, current_user.id, song_id)
+    if not db_song:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Песня или пользователь не найдены")
+    return db_song
+
+
+@router.get("/favorites", response_model=List[schemas.Song])
+def list_favorites(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.get_user_favorites(db, current_user.id, skip=skip, limit=limit)
+
+
 @router.put("/playlists/{playlist_id}", response_model=schemas.Playlist)
 def update_playlist(
     playlist_id: int,
