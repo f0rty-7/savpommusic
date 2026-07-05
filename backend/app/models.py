@@ -19,6 +19,14 @@ user_favorite = Table(
 )
 
 
+user_playlist_like = Table(
+    "user_playlist_like",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("playlist_id", Integer, ForeignKey("playlists.id"), primary_key=True),
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -28,6 +36,7 @@ class User(Base):
     auth_token = Column(String, unique=True, index=True, nullable=True)
     avatar_url = Column(String, default="")
     favorites = relationship("Song", secondary=user_favorite, back_populates="liked_by")
+    liked_playlists = relationship("Playlist", secondary=user_playlist_like, back_populates="liked_by")
 
 
 class Song(Base):
@@ -67,5 +76,10 @@ class Playlist(Base):
     name = Column(String, index=True)
     description = Column(String, default="")
     cover_url = Column(String, default="")
+    is_public = Column(Integer, default=1)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    owner = relationship("User")
 
     songs = relationship("Song", secondary=playlist_song, back_populates="playlists")
+    liked_by = relationship("User", secondary=user_playlist_like, back_populates="liked_playlists")

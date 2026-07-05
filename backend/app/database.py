@@ -32,6 +32,10 @@ def init_db():
             columns = [row[1] for row in result.fetchall()]
             if "cover_url" not in columns:
                 conn.execute(text("ALTER TABLE playlists ADD COLUMN cover_url TEXT DEFAULT ''"))
+            if "is_public" not in columns:
+                conn.execute(text("ALTER TABLE playlists ADD COLUMN is_public INTEGER DEFAULT 1"))
+            if "owner_id" not in columns:
+                conn.execute(text("ALTER TABLE playlists ADD COLUMN owner_id INTEGER NULL"))
             conn.commit()
         with engine.connect() as conn:
             result = conn.execute(text("PRAGMA table_info('users')"))

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from . import models, schemas
+from sqlalchemy import func
 
 
 def get_song(db: Session, song_id: int):
@@ -112,18 +113,19 @@ def get_playlist(db: Session, playlist_id: int):
 
 
 def get_playlists(db: Session, skip: int = 0, limit: int = 50):
-    return db.query(models.Playlist).offset(skip).limit(limit).all()
+    return db.query(models.Playlist).filter(models.Playlist.is_public == 1).offset(skip).limit(limit).all()
 
 
-def create_playlist(db: Session, playlist: schemas.PlaylistCreate):
+def create_playlist(db: Session, playlist: schemas.PlaylistCreate, owner_id: int | None = None):
     songs = []
     if playlist.song_ids:
         songs = db.query(models.Song).filter(models.Song.id.in_(playlist.song_ids)).all()
-
     db_playlist = models.Playlist(
         name=playlist.name,
         description=playlist.description,
         cover_url=playlist.cover_url or "",
+        is_public=1 if (playlist.is_public is None or playlist.is_public) else 0,
+        owner_id=owner_id,
     )
     db_playlist.songs = songs
     db.add(db_playlist)
@@ -189,6 +191,92 @@ def update_playlist(db: Session, playlist_id: int, playlist_update: schemas.Play
     db.commit()
     db.refresh(db_playlist)
     return db_playlist
+
+
+def get_private_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50):
+    return (
+        db.query(models.Playlist)
+        .filter(models.Playlist.owner_id == user_id)
+        .filter(models.Playlist.is_public == 0)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def add_playlist_like(db: Session, user_id: int, playlist_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        return None
+    db_playlist = db.query(models.Playlist).filter(models.Playlist.id == playlist_id).first()
+    if not db_playlist:
+        return None
+    if db_playlist not in db_user.liked_playlists:
+        db_user.liked_playlists.append(db_playlist)
+        db.commit()
+        db.refresh(db_playlist)
+    return db_playlist
+
+
+def remove_playlist_like(db: Session, user_id: int, playlist_id: int):
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        return None
+    db_playlist = db.query(models.Playlist).filter(models.Playlist.id == playlist_id).first()
+    if not db_playlist:
+        return None
+    if db_playlist in db_user.liked_playlists:
+        db_user.liked_playlists.remove(db_playlist)
+        db.commit()
+        db.refresh(db_playlist)
+    return db_playlist
+
+
+def get_popular_playlists(db: Session, limit: int = 10):
+    # return playlists ordered by number of likes desc
+    q = (
+        db.query(models.Playlist, func.count(models.user_playlist_like.c.user_id).label("likes"))
+        .outerjoin(models.user_playlist_like, models.Playlist.id == models.user_playlist_like.c.playlist_id)
+        .filter(models.Playlist.is_public == 1)
+        .group_by(models.Playlist.id)
+        .order_by(func.count(models.user_playlist_like.c.user_id).desc())
+        .limit(limit)
+    )
+    results = q.all()
+    playlists: list[models.Playlist] = []
+    for playlist, likes in results:
+        setattr(playlist, "likes_count", int(likes))
+        playlists.append(playlist)
+    return playlists
+
+
+def get_user_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50):
+    return (
+        db.query(models.Playlist)
+        .filter(models.Playlist.owner_id == user_id)
+        .order_by(models.Playlist.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_user_liked_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50):
+    # return playlists liked by user; include only public playlists or those owned by the user
+    q = (
+        db.query(models.Playlist)
+        .join(models.user_playlist_like, models.Playlist.id == models.user_playlist_like.c.playlist_id)
+        .filter(models.user_playlist_like.c.user_id == user_id)
+        .filter((models.Playlist.is_public == 1) | (models.Playlist.owner_id == user_id))
+        .order_by(models.Playlist.id.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    results = q.all()
+    # annotate likes_count
+    for p in results:
+        setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
+    return results
 
 
 def delete_playlist(db: Session, playlist_id: int):

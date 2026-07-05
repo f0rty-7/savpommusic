@@ -340,7 +340,10 @@ def list_playlists(
     limit: int = 50,
     db: Session = Depends(get_db),
 ):
-    return crud.get_playlists(db, skip=skip, limit=limit)
+    playlists = crud.get_playlists(db, skip=skip, limit=limit)
+    for p in playlists:
+        setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
+    return playlists
 
 
 @router.post("/playlists", response_model=schemas.Playlist)
@@ -350,6 +353,7 @@ def create_playlist(
     description: str | None = Form(None),
     cover_url: str | None = Form(None),
     song_ids: str | List[str] | None = Form(None),
+    is_public: bool | None = Form(True),
     cover: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
@@ -362,19 +366,10 @@ def create_playlist(
         description=description or "",
         cover_url=cover_url_value,
         song_ids=parse_song_ids(song_ids),
+        is_public=is_public,
     )
-    return crud.create_playlist(db, playlist_data)
+    return crud.create_playlist(db, playlist_data, owner_id=current_user.id)
 
-
-@router.get("/playlists/{playlist_id}", response_model=schemas.Playlist)
-def get_playlist(
-    playlist_id: int,
-    db: Session = Depends(get_db),
-):
-    db_playlist = crud.get_playlist(db, playlist_id)
-    if not db_playlist:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
-    return db_playlist
 
 
 @router.post("/favorites", response_model=schemas.Song)
@@ -419,6 +414,7 @@ def update_playlist(
     description: str | None = Form(None),
     cover_url: str | None = Form(None),
     song_ids: str | List[str] | None = Form(None),
+    is_public: bool | None = Form(None),
     cover: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
@@ -435,8 +431,96 @@ def update_playlist(
         description=description,
         cover_url=cover_url_value,
         song_ids=parse_song_ids(song_ids),
+        is_public=is_public,
     )
     db_playlist = crud.update_playlist(db, playlist_id, playlist_update)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
+    return db_playlist
+
+
+@router.get("/playlists/private", response_model=List[schemas.PlaylistListItem])
+def list_private_playlists(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    playlists = crud.get_private_playlists(db, current_user.id, skip=skip, limit=limit)
+    for p in playlists:
+        setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
+    return playlists
+
+
+@router.post("/playlists/{playlist_id}/like", response_model=schemas.Playlist)
+def like_playlist(
+    playlist_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_playlist = crud.add_playlist_like(db, current_user.id, playlist_id)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист или пользователь не найдены")
+    setattr(db_playlist, "likes_count", len(getattr(db_playlist, "liked_by", []) or []))
+    return db_playlist
+
+
+@router.delete("/playlists/{playlist_id}/like", response_model=schemas.Playlist)
+def unlike_playlist(
+    playlist_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_playlist = crud.remove_playlist_like(db, current_user.id, playlist_id)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист или пользователь не найдены")
+    setattr(db_playlist, "likes_count", len(getattr(db_playlist, "liked_by", []) or []))
+    return db_playlist
+
+
+@router.get("/playlists/popular", response_model=List[schemas.PlaylistListItem])
+def popular_playlists(
+    limit: int = 100,
+    db: Session = Depends(get_db),
+):
+    playlists = crud.get_popular_playlists(db, limit=limit)
+    return playlists
+
+
+
+@router.get("/playlists/mine", response_model=List[schemas.PlaylistListItem])
+def my_playlists(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    playlists = crud.get_user_playlists(db, current_user.id, skip=skip, limit=limit)
+    for p in playlists:
+        setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
+    return playlists
+
+
+@router.get("/playlists/liked", response_model=List[schemas.PlaylistListItem])
+def liked_playlists(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    playlists = crud.get_user_liked_playlists(db, current_user.id, skip=skip, limit=limit)
+    for p in playlists:
+        setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
+    return playlists
+
+
+
+@router.get("/playlists/{playlist_id}", response_model=schemas.Playlist)
+def get_playlist(
+    playlist_id: int,
+    db: Session = Depends(get_db),
+):
+    db_playlist = crud.get_playlist(db, playlist_id)
     if not db_playlist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
     return db_playlist

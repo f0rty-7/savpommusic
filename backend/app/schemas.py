@@ -111,10 +111,13 @@ class PlaylistBase(BaseModel):
 
 class PlaylistCreate(PlaylistBase):
     song_ids: Optional[List[int]] = None
+    is_public: Optional[bool] = True
 
 
 class PlaylistListItem(PlaylistBase):
     id: int
+    is_public: Optional[bool] = True
+    likes_count: int = 0
 
     class Config:
         orm_mode = True
@@ -125,11 +128,15 @@ class PlaylistUpdate(BaseModel):
     description: Optional[str] = None
     cover_url: Optional[str] = None
     song_ids: Optional[List[int]] = None
+    is_public: Optional[bool] = None
 
 
 class Playlist(PlaylistBase):
     id: int
     songs: List[Song] = []
+    is_public: Optional[bool] = True
+    owner_id: Optional[int] = None
+    likes_count: int = 0
 
     class Config:
         orm_mode = True
