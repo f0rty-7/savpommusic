@@ -193,6 +193,34 @@ def update_playlist(db: Session, playlist_id: int, playlist_update: schemas.Play
     return db_playlist
 
 
+def add_song_to_playlist(db: Session, playlist_id: int, song_id: int):
+    db_playlist = db.query(models.Playlist).filter(models.Playlist.id == playlist_id).first()
+    if not db_playlist:
+        return None
+    db_song = db.query(models.Song).filter(models.Song.id == song_id).first()
+    if not db_song:
+        return None
+    if db_song not in db_playlist.songs:
+        db_playlist.songs.append(db_song)
+        db.commit()
+        db.refresh(db_playlist)
+    return db_playlist
+
+
+def remove_song_from_playlist(db: Session, playlist_id: int, song_id: int):
+    db_playlist = db.query(models.Playlist).filter(models.Playlist.id == playlist_id).first()
+    if not db_playlist:
+        return None
+    db_song = db.query(models.Song).filter(models.Song.id == song_id).first()
+    if not db_song:
+        return None
+    if db_song in db_playlist.songs:
+        db_playlist.songs.remove(db_song)
+        db.commit()
+        db.refresh(db_playlist)
+    return db_playlist
+
+
 def get_private_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50):
     return (
         db.query(models.Playlist)

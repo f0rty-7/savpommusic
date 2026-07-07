@@ -478,6 +478,42 @@ def unlike_playlist(
     return db_playlist
 
 
+@router.post("/playlists/{playlist_id}/songs", response_model=schemas.Playlist)
+def add_song_to_playlist(
+    playlist_id: int,
+    song_id: int = Form(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_playlist = crud.get_playlist(db, playlist_id)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
+    if db_playlist.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы можете добавлять треки только в свои плейлисты")
+    db_playlist = crud.add_song_to_playlist(db, playlist_id, song_id)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист или песня не найдены")
+    return db_playlist
+
+
+@router.delete("/playlists/{playlist_id}/songs", response_model=schemas.Playlist)
+def remove_song_from_playlist(
+    playlist_id: int,
+    song_id: int = Form(...),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    db_playlist = crud.get_playlist(db, playlist_id)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
+    if db_playlist.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Вы можете удалять треки только из своих плейлистов")
+    db_playlist = crud.remove_song_from_playlist(db, playlist_id, song_id)
+    if not db_playlist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист или песня не найдены")
+    return db_playlist
+
+
 @router.get("/playlists/popular", response_model=List[schemas.PlaylistListItem])
 def popular_playlists(
     limit: int = 100,
