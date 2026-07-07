@@ -523,6 +523,7 @@ def get_playlist(
     db_playlist = crud.get_playlist(db, playlist_id)
     if not db_playlist:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Плейлист не найден")
+    setattr(db_playlist, "likes_count", len(getattr(db_playlist, "liked_by", []) or []))
     return db_playlist
 
 
