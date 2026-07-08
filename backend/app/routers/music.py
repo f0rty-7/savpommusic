@@ -168,6 +168,7 @@ async def add_song(
         url=file_url,
         cover_url=cover_url_value,
         duration=duration or 0,
+        uploader_id=current_user.id,
     )
     return crud.create_song(db, song)
 
@@ -175,6 +176,19 @@ async def add_song(
 @router.get("/songs/popular", response_model=List[schemas.Song])
 def popular_songs(limit: int = 10, db: Session = Depends(get_db)):
     return crud.get_popular_songs(db, limit=limit)
+
+
+@router.get("/search", response_model=schemas.SearchResults)
+def search_all(
+    query: str | None = Query(None, description="Искать по песням, исполнителям и плейлистам"),
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    if not query:
+        return schemas.SearchResults(songs=[], playlists=[])
+    songs, playlists = crud.search_all(db, query, skip=skip, limit=limit)
+    return schemas.SearchResults(songs=songs, playlists=playlists)
 
 
 @router.get("/genres", response_model=List[schemas.GenreResponse])
@@ -336,11 +350,15 @@ def delete_song(
 
 @router.get("/playlists", response_model=List[schemas.PlaylistListItem])
 def list_playlists(
+    search: str | None = Query(None, description="Искать по названию или описанию плейлиста"),
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
 ):
-    playlists = crud.get_playlists(db, skip=skip, limit=limit)
+    if search:
+        playlists = crud.search_playlists(db, search, skip=skip, limit=limit)
+    else:
+        playlists = crud.get_playlists(db, skip=skip, limit=limit)
     for p in playlists:
         setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
     return playlists
@@ -526,12 +544,13 @@ def popular_playlists(
 
 @router.get("/playlists/mine", response_model=List[schemas.PlaylistListItem])
 def my_playlists(
+    include_songs: bool = Query(False, description="Подгружать треки для каждого плейлиста"),
     skip: int = 0,
     limit: int = 50,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    playlists = crud.get_user_playlists(db, current_user.id, skip=skip, limit=limit)
+    playlists = crud.get_user_playlists(db, current_user.id, skip=skip, limit=limit, include_songs=include_songs)
     for p in playlists:
         setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
     return playlists

@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from . import models, schemas
 from sqlalchemy import func
@@ -114,6 +114,44 @@ def get_playlist(db: Session, playlist_id: int):
 
 def get_playlists(db: Session, skip: int = 0, limit: int = 50):
     return db.query(models.Playlist).filter(models.Playlist.is_public == 1).offset(skip).limit(limit).all()
+
+
+def search_playlists(db: Session, search: str, skip: int = 0, limit: int = 50):
+    if not search:
+        return []
+    search_text = f"%{search}%"
+    return (
+        db.query(models.Playlist)
+        .filter(models.Playlist.is_public == 1)
+        .filter(
+            models.Playlist.name.ilike(search_text)
+            | models.Playlist.description.ilike(search_text)
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
+def search_all(db: Session, search: str, skip: int = 0, limit: int = 50):
+    if not search:
+        return [], []
+    search_text = f"%{search}%"
+    songs = (
+        db.query(models.Song)
+        .filter(
+            models.Song.title.ilike(search_text)
+            | models.Song.artist.ilike(search_text)
+            | models.Song.album.ilike(search_text)
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    playlists = search_playlists(db, search, skip=skip, limit=limit)
+    for p in playlists:
+        setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
+    return songs, playlists
 
 
 def create_playlist(db: Session, playlist: schemas.PlaylistCreate, owner_id: int | None = None):
@@ -278,10 +316,12 @@ def get_popular_playlists(db: Session, limit: int = 10):
     return playlists
 
 
-def get_user_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50):
+def get_user_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50, include_songs: bool = False):
+    query = db.query(models.Playlist)
+    if include_songs:
+        query = query.options(joinedload(models.Playlist.songs))
     return (
-        db.query(models.Playlist)
-        .filter(models.Playlist.owner_id == user_id)
+        query.filter(models.Playlist.owner_id == user_id)
         .order_by(models.Playlist.id.desc())
         .offset(skip)
         .limit(limit)

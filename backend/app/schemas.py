@@ -3,6 +3,10 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+class OrmBaseModel(BaseModel):
+    model_config = {"from_attributes": True}
+
+
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -13,13 +17,10 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class UserResponse(BaseModel):
+class UserResponse(OrmBaseModel):
     id: int
     username: str
     avatar_url: Optional[str] = ""
-
-    class Config:
-        orm_mode = True
 
 
 class UserUpdate(BaseModel):
@@ -38,6 +39,7 @@ class SongBase(BaseModel):
     cover_url: Optional[str] = ""
     duration: Optional[int] = 0
     plays_count: Optional[int] = 0
+    uploader_id: Optional[int] = None
 
 
 class SongCreate(SongBase):
@@ -56,7 +58,7 @@ class SongUpdate(BaseModel):
     plays_count: Optional[int] = None
 
 
-class Song(BaseModel):
+class Song(OrmBaseModel):
     id: int
     title: str
     artist: str
@@ -67,9 +69,7 @@ class Song(BaseModel):
     cover_url: Optional[str] = ""
     duration: Optional[int] = 0
     plays_count: Optional[int] = 0
-
-    class Config:
-        orm_mode = True
+    uploader_id: Optional[int] = None
 
 
 class GenreBase(BaseModel):
@@ -88,11 +88,8 @@ class GenreUpdate(BaseModel):
     cover_url: Optional[str] = None
 
 
-class GenreResponse(GenreBase):
+class GenreResponse(GenreBase, OrmBaseModel):
     id: int
-
-    class Config:
-        orm_mode = True
 
 
 class GenreWithSongs(GenreResponse):
@@ -114,13 +111,11 @@ class PlaylistCreate(PlaylistBase):
     is_public: Optional[bool] = True
 
 
-class PlaylistListItem(PlaylistBase):
+class PlaylistListItem(PlaylistBase, OrmBaseModel):
     id: int
     is_public: Optional[bool] = True
     likes_count: int = 0
-
-    class Config:
-        orm_mode = True
+    songs: List[Song] = []
 
 
 class PlaylistUpdate(BaseModel):
@@ -131,12 +126,25 @@ class PlaylistUpdate(BaseModel):
     is_public: Optional[bool] = None
 
 
-class Playlist(PlaylistBase):
+class Playlist(PlaylistBase, OrmBaseModel):
     id: int
     songs: List[Song] = []
     is_public: Optional[bool] = True
     owner_id: Optional[int] = None
     likes_count: int = 0
+
+
+class SearchResults(BaseModel):
+    songs: List[Song] = []
+    playlists: List[PlaylistListItem] = []
+
+    class Config:
+        orm_mode = True
+
+
+class SearchResults(BaseModel):
+    songs: List[Song] = []
+    playlists: List[PlaylistListItem] = []
 
     class Config:
         orm_mode = True

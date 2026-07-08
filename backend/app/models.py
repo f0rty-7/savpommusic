@@ -37,6 +37,7 @@ class User(Base):
     avatar_url = Column(String, default="")
     favorites = relationship("Song", secondary=user_favorite, back_populates="liked_by")
     liked_playlists = relationship("Playlist", secondary=user_playlist_like, back_populates="liked_by")
+    songs = relationship("Song", back_populates="uploader")
 
 
 class Song(Base):
@@ -52,10 +53,12 @@ class Song(Base):
     cover_url = Column(String, default="")
     duration = Column(Integer, default=0)
     plays_count = Column(Integer, default=0)
+    uploader_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     genre_detail = relationship("Genre", back_populates="songs")
     playlists = relationship("Playlist", secondary=playlist_song, back_populates="songs")
     liked_by = relationship("User", secondary=user_favorite, back_populates="favorites")
+    uploader = relationship("User", back_populates="songs")
 
 
 class Genre(Base):
