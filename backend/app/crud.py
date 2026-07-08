@@ -70,6 +70,22 @@ def get_genre(db: Session, genre_id: int):
     return db.query(models.Genre).filter(models.Genre.id == genre_id).first()
 
 
+def get_or_create_genre(db: Session, genre_title: str):
+    if not genre_title:
+        return None
+    genre_title = genre_title.strip()
+    if not genre_title:
+        return None
+    db_genre = db.query(models.Genre).filter(models.Genre.title.ilike(genre_title)).first()
+    if db_genre:
+        return db_genre
+    db_genre = models.Genre(title=genre_title, description="", cover_url="")
+    db.add(db_genre)
+    db.commit()
+    db.refresh(db_genre)
+    return db_genre
+
+
 def create_genre(db: Session, genre: schemas.GenreCreate):
     db_genre = models.Genre(**genre.dict())
     db.add(db_genre)

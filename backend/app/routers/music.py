@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 from uuid import uuid4
 
+from mutagen import File as MutagenFile
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -96,6 +97,33 @@ def save_cover_file(file: UploadFile) -> str:
     return f"/static/covers/{target.name}"
 
 
+def save_cover_bytes(data: bytes) -> str:
+    filename = f"{uuid4().hex}_cover.jpg"
+    target = COVER_DIR / filename
+    target.write_bytes(data)
+    return f"/static/covers/{target.name}"
+
+
+def extract_cover_url(file_path: Path) -> str | None:
+    try:
+        audio = MutagenFile(str(file_path))
+        if not audio or not hasattr(audio, "tags") or not audio.tags:
+            return None
+        apics = []
+        if hasattr(audio.tags, "getall"):
+            apics = audio.tags.getall("APIC")
+        elif "APIC:" in audio.tags:
+            apics = [audio.tags["APIC:"]]
+        if not apics:
+            return None
+        picture = apics[0]
+        if not hasattr(picture, "data"):
+            return None
+        return save_cover_bytes(picture.data)
+    except Exception:
+        return None
+
+
 def parse_song_ids(song_ids: str | List[str] | None) -> list[int] | None:
     if song_ids is None:
         return None
@@ -171,6 +199,71 @@ async def add_song(
         uploader_id=current_user.id,
     )
     return crud.create_song(db, song)
+
+
+@router.post("/songs/import", response_model=schemas.SongImportResponse, summary="Import Songs")
+@router.post("/import", response_model=schemas.SongImportResponse, summary="Import Songs")
+async def import_songs(
+    files: List[UploadFile] = File(..., description="MP3 files to import"),
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    imported_songs: list[models.Song] = []
+    errors: list[dict] = []
+
+    for file in files:
+        filename = Path(file.filename).name
+        if not filename.lower().endswith(".mp3"):
+            errors.append({"filename": filename, "error": "Неподдерживаемый формат файла"})
+            continue
+        try:
+            file_url = save_audio_file(file)
+            saved_path = BASE_DIR / file_url.lstrip("/")
+            tags = {}
+            try:
+                audio = MutagenFile(str(saved_path), easy=True)
+                if audio and audio.tags:
+                    for key, value in audio.tags.items():
+                        if isinstance(value, list) and value:
+                            tags[key.lower()] = str(value[0])
+                        else:
+                            tags[key.lower()] = str(value)
+            except Exception:
+                tags = {}
+
+            title = tags.get("title", "")
+            artist = tags.get("artist", "")
+            album = tags.get("album", "")
+            genre_value = tags.get("genre", "")
+            genre_id = None
+            if genre_value:
+                genre = crud.get_or_create_genre(db, genre_value)
+                if genre:
+                    genre_id = genre.id
+                    genre_value = genre.title
+
+            cover_url_value = extract_cover_url(saved_path) or ""
+            song = schemas.SongCreate(
+                title=title,
+                artist=artist,
+                album=album,
+                genre=genre_value,
+                genre_id=genre_id,
+                url=file_url,
+                cover_url=cover_url_value,
+                duration=0,
+                uploader_id=current_user.id,
+            )
+            imported_songs.append(crud.create_song(db, song))
+        except Exception as exc:
+            errors.append({"filename": filename, "error": str(exc)})
+
+    return schemas.SongImportResponse(
+        imported=imported_songs,
+        errors=[schemas.SongImportError(**error) for error in errors],
+        created=len(imported_songs),
+        failed=len(errors),
+    )
 
 
 @router.get("/songs/popular", response_model=List[schemas.Song])

@@ -72,6 +72,18 @@ class Song(OrmBaseModel):
     uploader_id: Optional[int] = None
 
 
+class SongImportError(BaseModel):
+    filename: str
+    error: str
+
+
+class SongImportResponse(BaseModel):
+    imported: List[Song] = []
+    errors: List[SongImportError] = []
+    created: int = 0
+    failed: int = 0
+
+
 class GenreBase(BaseModel):
     title: str
     description: Optional[str] = ""
@@ -132,14 +144,6 @@ class Playlist(PlaylistBase, OrmBaseModel):
     is_public: Optional[bool] = True
     owner_id: Optional[int] = None
     likes_count: int = 0
-
-
-class SearchResults(BaseModel):
-    songs: List[Song] = []
-    playlists: List[PlaylistListItem] = []
-
-    class Config:
-        orm_mode = True
 
 
 class SearchResults(BaseModel):
