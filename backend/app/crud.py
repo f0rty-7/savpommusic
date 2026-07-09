@@ -326,7 +326,6 @@ def remove_playlist_like(db: Session, user_id: int, playlist_id: int):
 
 
 def get_popular_playlists(db: Session, limit: int = 10):
-    # return playlists ordered by number of likes desc
     q = (
         db.query(models.Playlist, func.count(models.user_playlist_like.c.user_id).label("likes"))
         .outerjoin(models.user_playlist_like, models.Playlist.id == models.user_playlist_like.c.playlist_id)
@@ -357,7 +356,6 @@ def get_user_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50
 
 
 def get_user_liked_playlists(db: Session, user_id: int, skip: int = 0, limit: int = 50):
-    # return playlists liked by user; include only public playlists or those owned by the user
     q = (
         db.query(models.Playlist)
         .join(models.user_playlist_like, models.Playlist.id == models.user_playlist_like.c.playlist_id)
@@ -368,7 +366,6 @@ def get_user_liked_playlists(db: Session, user_id: int, skip: int = 0, limit: in
         .limit(limit)
     )
     results = q.all()
-    # annotate likes_count
     for p in results:
         setattr(p, "likes_count", len(getattr(p, "liked_by", []) or []))
     return results
@@ -383,7 +380,6 @@ def delete_playlist(db: Session, playlist_id: int):
     return db_playlist
 
 
-# update user profile helper
 def update_user_profile(db: Session, user_id: int, user_update: schemas.UserUpdate):
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if not db_user:
