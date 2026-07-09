@@ -158,6 +158,16 @@ def list_songs(
     return crud.get_songs(db, skip=skip, limit=limit, search=search)
 
 
+@router.get("/songs/mine", response_model=List[schemas.Song])
+def list_my_songs(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return crud.get_user_songs(db, current_user.id, skip=skip, limit=limit)
+
+
 @router.post("/songs", response_model=schemas.Song)
 async def add_song(
     current_user: models.User = Depends(get_current_user),

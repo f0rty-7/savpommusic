@@ -20,6 +20,17 @@ def get_songs(db: Session, skip: int = 0, limit: int = 50, search: str | None = 
     return query.offset(skip).limit(limit).all()
 
 
+def get_user_songs(db: Session, user_id: int, skip: int = 0, limit: int = 50):
+    return (
+        db.query(models.Song)
+        .filter(models.Song.uploader_id == user_id)
+        .order_by(models.Song.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 def create_song(db: Session, song: schemas.SongCreate):
     db_song = models.Song(**song.dict())
     db.add(db_song)
